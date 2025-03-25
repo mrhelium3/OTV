@@ -1,10 +1,10 @@
 // Define pins for Sensor 1
-const int trigPin1 = 2;
-const int echoPin1 = 3;
+const int trigPin1 = 14;
+const int echoPin1 = 15;
 
 // Define pins for Sensor 2
-const int trigPin2 = 4;
-const int echoPin2 = 5;
+const int trigPin2 = 16;
+const int echoPin2 = 17;
 
 void setup() {
     Serial.begin(9600);
