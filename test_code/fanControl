@@ -10,7 +10,7 @@ void setup() {
 }
 
 void loop() {
-  // For testing - this would be integrated with your mission code later
+  // Simple test sequence - can be replaced with mission code later
   testFanControl();
 }
 
@@ -27,24 +27,6 @@ void fanOff() {
   Serial.println("Fans OFF");
 }
 
-// Function to gradually increase fan speed
-void fadeInFan() {
-  Serial.println("Fading fans in...");
-  for (int i = 0; i <= 255; i++) {
-    analogWrite(FAN_PIN, i);
-    delay(10);
-  }
-}
-
-// Function to gradually decrease fan speed
-void fadeOutFan() {
-  Serial.println("Fading fans out...");
-  for (int i = 255; i >= 0; i--) {
-    analogWrite(FAN_PIN, i);
-    delay(10);
-  }
-}
-
 // Test function to demonstrate fan control
 void testFanControl() {
   // Full speed
@@ -53,24 +35,13 @@ void testFanControl() {
   
   // Off
   fanOff();
-  delay(1000);
-  
-  // Gradually speed up
-  fadeInFan();
   delay(2000);
   
-  // Gradually slow down
-  fadeOutFan();
-  delay(1000);
+  // Half speed
+  fanOn(128);
+  delay(3000);
+  
+  // Off
+  fanOff();
+  delay(2000);
 }
-
-
-// for main code
-// bool isNearCandles = false;
-
-// In your mission control code, when approaching candles:
-// if (isNearCandles) {
-  // fanOn(255);  // Full power for fire suppression
-// } else {
-  // fanOff();    // Save power when not near candles
-// }
