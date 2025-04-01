@@ -1,0 +1,56 @@
+// code for ESP8266 camera module
+
+// Include the ENES100 library
+#include "Enes100.h"
+
+// Team information
+const char* teamName = "Chiu Chiu Train"; 
+byte teamType = FIRE;
+int markerId = 467; // Your marker ID
+int roomNumber = 1120;
+int wifiModuleTX = 11; // Connected to ESP8266 RX
+int wifiModuleRX = 12; // Connected to ESP8266 TX
+
+// Model index for candle detection (you define this when uploading your model)
+const int CANDLE_MODEL_INDEX = 1; 
+
+void setup() {
+  // Initialize Serial for debugging
+  Serial.begin(9600);
+  
+  // Initialize ENES100 communication
+  Enes100.begin(teamName, teamType, markerId, roomNumber, wifiModuleTX, wifiModuleRX);
+  
+  Serial.println("OTV setup complete");
+}
+
+// Function to detect and count candles
+int detectCandles() {
+  // Take a photo and get prediction from trained model
+  int candleCount = Enes100.MLGetPrediction(CANDLE_MODEL_INDEX);
+  
+  // Print result for debugging
+  Serial.print("Candles detected: ");
+  Serial.println(candleCount);
+  
+  return candleCount;
+}
+
+void performFireMission() {
+  // First navigate to the fire pedestal using your navigation code
+  // ...
+  
+  // When in position, detect candles
+  int candleCount = detectCandles();
+  
+  // Report result to mission control
+  Enes100.mission(NUM_CANDLES, candleCount);
+  
+  // Activate fans to extinguish appropriate candles
+  // ...
+}
+
+void loop() {
+  // Main control code
+  // Call performFireMission() when in position
+}
