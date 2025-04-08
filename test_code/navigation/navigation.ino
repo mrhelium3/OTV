@@ -1,11 +1,11 @@
 #include "Enes100.h"
 #include <L298NX2.h>
 
-#define LEFT_MOTOR_FORWARD 5  // Adjust based on wiring
-#define LEFT_MOTOR_BACKWARD 6
-#define RIGHT_MOTOR_FORWARD 9
-#define RIGHT_MOTOR_BACKWARD 10
-#define MOTOR_SPEED 150  // Adjust for speed control (0-255)
+//#define LEFT_MOTOR_FORWARD 5  // Adjust based on wiring
+//#define LEFT_MOTOR_BACKWARD 6
+//#define RIGHT_MOTOR_FORWARD 9
+//#define RIGHT_MOTOR_BACKWARD 10
+//#define MOTOR_SPEED 150  // Adjust for speed control (0-255)
 const unsigned int EN_A = 11;
 const unsigned int IN1_A = 10;
 const unsigned int IN2_A = 9;
