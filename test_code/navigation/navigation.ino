@@ -6,13 +6,13 @@
 //#define RIGHT_MOTOR_FORWARD 9
 //#define RIGHT_MOTOR_BACKWARD 10
 //#define MOTOR_SPEED 150  // Adjust for speed control (0-255)
-const unsigned int EN_A = 11;
-const unsigned int IN1_A = 10;
-const unsigned int IN2_A = 9;
+const int EN_A = 11;
+const int IN1_A = 10;
+const int IN2_A = 9;
 
-const unsigned int EN_B = 3;
-const unsigned int IN1_B = 6;
-const unsigned int IN2_B = 5;
+const int EN_B = 3;
+const int IN1_B = 6;
+const int IN2_B = 5;
 
 // Initialize both motors
 L298NX2 motors(EN_A, IN1_A, IN2_A, EN_B, IN1_B, IN2_B);
@@ -22,7 +22,7 @@ L298NX2 motors(EN_A, IN1_A, IN2_A, EN_B, IN1_B, IN2_B);
 void navigateTo(float targetX, float targetY, float targetTheta);
 void rotateToAngle(float targetTheta);
 void moveToPosition(float targetX, float targetY);
-void setMotorSpeed(int leftSpeed, int rightSpeed);
+//void setMotorSpeed(int leftSpeed, int rightSpeed); //motor speed are set in void setup loop
 void stopMotors();
 
 void setup() {
