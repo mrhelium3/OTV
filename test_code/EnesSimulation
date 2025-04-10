@@ -101,6 +101,7 @@ float distanceTo(float x1, float y1, float x2, float y2) {
 }
 
 // Navigate toward a target position with improved turning
+// Improved navigation function
 void navigateTowardTarget(float currentX, float currentY, float currentTheta, float targetX, float targetY) {
   // Calculate angle to target
   float targetAngle = atan2(targetY - currentY, targetX - currentX);
@@ -112,8 +113,27 @@ void navigateTowardTarget(float currentX, float currentY, float currentTheta, fl
   while (angleDiff > PI) angleDiff -= 2*PI;
   while (angleDiff < -PI) angleDiff += 2*PI;
   
-  // If not facing the right direction, rotate
-  if (abs(angleDiff) > ANGLE_TOLERANCE) {
+  // Debug information
+  Enes100.print("Target angle: ");
+  Enes100.print(targetAngle);
+  Enes100.print(", Current angle: ");
+  Enes100.print(currentTheta);
+  Enes100.print(", Difference: ");
+  Enes100.println(angleDiff);
+  
+  // Increased tolerance to reduce oscillation
+  const float STRICT_ANGLE_TOLERANCE = 0.3; // About 17 degrees
+  const float WIDE_ANGLE_TOLERANCE = 0.5;   // About 28 degrees
+  
+  // Determine how far off course we are
+  float distance = distanceTo(currentX, currentY, targetX, targetY);
+  int forwardSpeed = (distance < 0.3) ? 100 : FORWARD_SPEED;
+  
+  // If very close to target, use stricter angle tolerance
+  float workingTolerance = (distance < 0.5) ? STRICT_ANGLE_TOLERANCE : WIDE_ANGLE_TOLERANCE;
+  
+  if (abs(angleDiff) > workingTolerance) {
+    // Need to turn significantly - pure turning
     if (angleDiff > 0) {
       // Turn left (counter-clockwise)
       Tank.setLeftMotorPWM(-TURN_SPEED);
@@ -125,14 +145,27 @@ void navigateTowardTarget(float currentX, float currentY, float currentTheta, fl
       Tank.setRightMotorPWM(-TURN_SPEED);
       Enes100.println("Turning right");
     }
-  } else {
-    // We're facing the right direction, move forward
-    // Slow down as we approach the target
-    float distance = distanceTo(currentX, currentY, targetX, targetY);
-    int speed = (distance < 0.3) ? 100 : FORWARD_SPEED;
+  } 
+  else if (abs(angleDiff) > 0.2) {
+    // Slightly off-angle - turn while moving forward slightly
+    int turnAdjust = TURN_SPEED / 2;
     
-    Tank.setLeftMotorPWM(speed);
-    Tank.setRightMotorPWM(speed);
+    if (angleDiff > 0) {
+      // Turn left while moving
+      Tank.setLeftMotorPWM(forwardSpeed - turnAdjust);
+      Tank.setRightMotorPWM(forwardSpeed + turnAdjust);
+      Enes100.println("Moving with left adjustment");
+    } else {
+      // Turn right while moving
+      Tank.setLeftMotorPWM(forwardSpeed + turnAdjust);
+      Tank.setRightMotorPWM(forwardSpeed - turnAdjust);
+      Enes100.println("Moving with right adjustment");
+    }
+  }
+  else {
+    // We're facing the right direction, move forward
+    Tank.setLeftMotorPWM(forwardSpeed);
+    Tank.setRightMotorPWM(forwardSpeed);
     Enes100.println("Moving forward");
   }
 }
