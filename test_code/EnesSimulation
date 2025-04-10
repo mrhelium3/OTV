@@ -1,0 +1,183 @@
+// this isn't working just yet
+
+#include <cmath>
+#include "Arduino.h"
+#include "Enes100.h"
+#include "Tank.h"
+
+// Navigation constants
+const float POSITION_TOLERANCE = 0.15;  // 15cm position tolerance
+const float ANGLE_TOLERANCE = 0.15;     // Increased for smoother turning (~8.5 degrees)
+const int TURN_SPEED = 80;              // Reduced for smoother turns
+const int FORWARD_SPEED = 150;          // PWM value for moving forward
+
+// Mission variables
+float missionX = 1.5;  // Mission site X
+float missionY = 1.0;  // Mission site Y
+
+// Obstacle detection & avoidance variables
+bool obstacleDectected = false;
+bool avoidingObstacle = false;
+int avoidanceStep = 0;
+unsigned long avoidanceTimer = 0;
+float lastX = 0;
+float lastY = 0;
+unsigned long lastMoveTime = 0;
+int stuckCount = 0;
+
+void setup() {
+  // Initialize Enes100 Library - use the EXACT same format as your working example
+  Enes100.begin("Team Fire", FIRE, 3, 1116, 3, 2);
+  
+  // Initialize the tank
+  Tank.begin();
+  
+  Enes100.println("Connected...");
+}
+
+void loop() {
+  // Get current position
+  float x = Enes100.getX();
+  float y = Enes100.getY();
+  float theta = Enes100.getTheta();
+  bool visible = Enes100.isVisible();
+  
+  // Print position information
+  if (visible) {
+    Enes100.print("Position: ");
+    Enes100.print(x);
+    Enes100.print(",");
+    Enes100.print(y);
+    Enes100.print(",");
+    Enes100.println(theta);
+    
+    // Check if we've reached the target
+    if (distanceTo(x, y, missionX, missionY) <= POSITION_TOLERANCE) {
+      Tank.turnOffMotors();
+      Enes100.println("Reached target position!");
+      delay(5000);  // Wait 5 seconds before potentially continuing
+      return;
+    }
+    
+    // Detect obstacles by checking if we're stuck
+    if (!avoidingObstacle) {
+      float distanceMoved = distanceTo(x, y, lastX, lastY);
+      if (distanceMoved < 0.01) {
+        stuckCount++;
+        if (stuckCount > 5) { // Stuck for ~0.5 seconds
+          Enes100.println("Possible obstacle detected!");
+          avoidingObstacle = true;
+          avoidanceStep = 0;
+          avoidanceTimer = millis();
+          stuckCount = 0;
+        }
+      } else {
+        stuckCount = 0;
+      }
+    }
+    
+    // Navigation logic
+    if (avoidingObstacle) {
+      avoidObstacle();
+    } else {
+      navigateTowardTarget(x, y, theta, missionX, missionY);
+    }
+    
+    // Update position tracking
+    lastX = x;
+    lastY = y;
+    lastMoveTime = millis();
+  } else {
+    Enes100.println("Aruco marker not visible");
+    Tank.turnOffMotors();
+  }
+  
+  delay(100);
+}
+
+// Calculate distance between two points
+float distanceTo(float x1, float y1, float x2, float y2) {
+  return sqrt(pow(x2 - x1, 2) + pow(y2 - y1, 2));
+}
+
+// Navigate toward a target position with improved turning
+void navigateTowardTarget(float currentX, float currentY, float currentTheta, float targetX, float targetY) {
+  // Calculate angle to target
+  float targetAngle = atan2(targetY - currentY, targetX - currentX);
+  
+  // Calculate angle difference
+  float angleDiff = targetAngle - currentTheta;
+  
+  // Normalize angle to [-PI, PI]
+  while (angleDiff > PI) angleDiff -= 2*PI;
+  while (angleDiff < -PI) angleDiff += 2*PI;
+  
+  // If not facing the right direction, rotate
+  if (abs(angleDiff) > ANGLE_TOLERANCE) {
+    if (angleDiff > 0) {
+      // Turn left (counter-clockwise)
+      Tank.setLeftMotorPWM(-TURN_SPEED);
+      Tank.setRightMotorPWM(TURN_SPEED);
+      Enes100.println("Turning left");
+    } else {
+      // Turn right (clockwise)
+      Tank.setLeftMotorPWM(TURN_SPEED);
+      Tank.setRightMotorPWM(-TURN_SPEED);
+      Enes100.println("Turning right");
+    }
+  } else {
+    // We're facing the right direction, move forward
+    // Slow down as we approach the target
+    float distance = distanceTo(currentX, currentY, targetX, targetY);
+    int speed = (distance < 0.3) ? 100 : FORWARD_SPEED;
+    
+    Tank.setLeftMotorPWM(speed);
+    Tank.setRightMotorPWM(speed);
+    Enes100.println("Moving forward");
+  }
+}
+
+// Simple obstacle avoidance routine
+void avoidObstacle() {
+  unsigned long elapsedTime = millis() - avoidanceTimer;
+  
+  switch (avoidanceStep) {
+    case 0: // Back up briefly
+      Tank.setLeftMotorPWM(-FORWARD_SPEED * 0.7);
+      Tank.setRightMotorPWM(-FORWARD_SPEED * 0.7);
+      Enes100.println("Avoiding: Backing up");
+      
+      if (elapsedTime > 500) {
+        avoidanceStep = 1;
+        avoidanceTimer = millis();
+      }
+      break;
+      
+    case 1: // Turn left ~90 degrees
+      Tank.setLeftMotorPWM(-TURN_SPEED);
+      Tank.setRightMotorPWM(TURN_SPEED);
+      Enes100.println("Avoiding: Turning left");
+      
+      if (elapsedTime > 1500) { // Adjust time as needed based on testing
+        avoidanceStep = 2;
+        avoidanceTimer = millis();
+      }
+      break;
+      
+    case 2: // Move forward to bypass obstacle
+      Tank.setLeftMotorPWM(FORWARD_SPEED);
+      Tank.setRightMotorPWM(FORWARD_SPEED);
+      Enes100.println("Avoiding: Moving forward");
+      
+      if (elapsedTime > 1500) {
+        avoidanceStep = 3;
+        avoidanceTimer = millis();
+      }
+      break;
+      
+    case 3: // Return to navigation
+      avoidingObstacle = false;
+      Enes100.println("Obstacle avoidance complete");
+      break;
+  }
+}
