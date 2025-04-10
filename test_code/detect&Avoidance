@@ -1,0 +1,221 @@
+// code still needs to be tested.
+
+#include "Enes100.h"
+#include <L298NX2.h>
+
+// Pin definitions for motors
+const unsigned int EN_A = 11;
+const unsigned int IN1_A = 10;
+const unsigned int IN2_A = 9;
+const unsigned int EN_B = 3;
+const unsigned int IN1_B = 6;
+const unsigned int IN2_B = 5;
+
+// Ultrasonic sensor pins
+const int TRIG_PIN = A0;
+const int ECHO_PIN = A1;
+
+// Initialize both motors
+L298NX2 motors(EN_A, IN1_A, IN2_A, EN_B, IN1_B, IN2_B);
+
+// Navigation constants
+const float POSITION_TOLERANCE = 0.15;  // 15cm position tolerance
+const float ANGLE_TOLERANCE = 0.1;      // ~6 degree angle tolerance
+const float OBSTACLE_DISTANCE = 0.3;    // 30cm obstacle detection threshold
+
+// Mission variables
+float missionX, missionY;               // Mission site coordinates
+const float FINAL_X = 3.4;              // Position before limbo/log
+const float FINAL_Y = 1.0;              // Center of arena width
+
+// Mission state (0=go to mission, 1=go to final position, 2=done)
+int navigationState = 0;
+
+void setup() {
+  Serial.begin(9600);
+  
+  // Setup ultrasonic sensor
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  
+  // Initialize Enes100 vision system
+  // Replace "Team Fire" with your team name, and 3 with your team number
+  Enes100.begin("Team Fire", FIRE, 3, 8, 9);
+  
+  // Set initial motor speed
+  motors.setSpeed(200);
+  
+  // Get mission site coordinates
+  missionX = Enes100.getMissionSiteX();
+  missionY = Enes100.getMissionSiteY();
+  
+  Serial.print("Mission site at: (");
+  Serial.print(missionX);
+  Serial.print(", ");
+  Serial.print(missionY);
+  Serial.println(")");
+}
+
+void loop() {
+  // Update location from vision system
+  Enes100.updateLocation();
+  
+  // Print current position
+  Serial.print("Position: (");
+  Serial.print(Enes100.getX());
+  Serial.print(", ");
+  Serial.print(Enes100.getY());
+  Serial.print(") Theta: ");
+  Serial.println(Enes100.getTheta());
+  
+  // Check for obstacles
+  if (isObstacleAhead()) {
+    // Found obstacle - avoid it
+    avoidObstacle();
+  } 
+  else {
+    // Navigate based on current state
+    switch (navigationState) {
+      case 0: // Go to mission site
+        if (navigateToTarget(missionX, missionY)) {
+          // Reached mission site
+          motors.stop();
+          Serial.println("Reached mission site!");
+          navigationState = 1;
+          delay(2000); // Short delay to simulate performing mission
+        }
+        break;
+        
+      case 1: // Go to final position
+        if (navigateToTarget(FINAL_X, FINAL_Y)) {
+          // Reached final position
+          motors.stop();
+          Serial.println("Navigation complete!");
+          navigationState = 2;
+        }
+        break;
+        
+      case 2: // Done
+        motors.stop();
+        break;
+    }
+  }
+  
+  // Short delay between loops
+  delay(100);
+}
+
+// Returns true if successfully at target position
+bool navigateToTarget(float targetX, float targetY) {
+  // Get current position
+  float currentX = Enes100.getX();
+  float currentY = Enes100.getY();
+  
+  // Calculate distance to target
+  float distance = sqrt(pow(targetX - currentX, 2) + pow(targetY - currentY, 2));
+  
+  // If we're close enough to target, return true
+  if (distance < POSITION_TOLERANCE) {
+    return true;
+  }
+  
+  // Calculate angle to target
+  float targetAngle = atan2(targetY - currentY, targetX - currentX);
+  
+  // Get current heading
+  float currentAngle = Enes100.getTheta();
+  
+  // Calculate angle difference
+  float angleDiff = targetAngle - currentAngle;
+  
+  // Normalize angle to [-PI, PI]
+  while (angleDiff > PI) angleDiff -= 2*PI;
+  while (angleDiff < -PI) angleDiff += 2*PI;
+  
+  // If not facing the right direction, rotate
+  if (abs(angleDiff) > ANGLE_TOLERANCE) {
+    if (angleDiff > 0) {
+      // Turn left (counter-clockwise)
+      motors.runA(L298N::BACKWARD);
+      motors.runB(L298N::FORWARD);
+    } else {
+      // Turn right (clockwise)
+      motors.runA(L298N::FORWARD);
+      motors.runB(L298N::BACKWARD);
+    }
+  } else {
+    // We're facing the right direction, move forward
+    motors.forward();
+  }
+  
+  // Not at target yet
+  return false;
+}
+
+// Check if obstacle is ahead using ultrasonic sensor
+bool isObstacleAhead() {
+  // Clear trigger pin
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  
+  // Send 10μs pulse
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+  
+  // Measure echo duration
+  long duration = pulseIn(ECHO_PIN, HIGH);
+  
+  // Calculate distance (sound travels at 343 m/s)
+  float distance = duration * 0.000343 / 2;
+  
+  return (distance < OBSTACLE_DISTANCE);
+}
+
+// Simple obstacle avoidance routine
+void avoidObstacle() {
+  // Stop first
+  motors.stop();
+  delay(500);
+  
+  Serial.println("Obstacle detected! Avoiding...");
+  
+  // Turn right about 90 degrees
+  float startAngle = Enes100.getTheta();
+  float targetAngle = startAngle - PI/2;
+  
+  // Normalize target angle
+  while (targetAngle < -PI) targetAngle += 2*PI;
+  
+  // Turn until we've reached the target angle
+  while (abs(Enes100.getTheta() - targetAngle) > ANGLE_TOLERANCE) {
+    Enes100.updateLocation();
+    motors.runA(L298N::FORWARD);
+    motors.runB(L298N::BACKWARD);
+  }
+  
+  // Move forward to go past the obstacle
+  motors.forward();
+  delay(2000);
+  
+  // Turn left to start going around obstacle
+  startAngle = Enes100.getTheta();
+  targetAngle = startAngle + PI/2;
+  
+  // Normalize target angle
+  while (targetAngle > PI) targetAngle -= 2*PI;
+  
+  // Turn until we've reached the target angle
+  while (abs(Enes100.getTheta() - targetAngle) > ANGLE_TOLERANCE) {
+    Enes100.updateLocation();
+    motors.runA(L298N::BACKWARD);
+    motors.runB(L298N::FORWARD);
+  }
+  
+  // Move forward past obstacle
+  motors.forward();
+  delay(1500);
+  
+  // Now we've gone around the obstacle
+  Serial.println("Obstacle avoided");
+}
