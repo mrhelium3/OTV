@@ -6,13 +6,18 @@
 //#define RIGHT_MOTOR_FORWARD 9
 //#define RIGHT_MOTOR_BACKWARD 10
 //#define MOTOR_SPEED 150  // Adjust for speed control (0-255)
-const int EN_A = 11;
-const int IN1_A = 10;
-const int IN2_A = 9;
+const int EN_A = 3;
+const int IN1_A = 5;
+const int IN2_A = 6;
 
-const int EN_B = 3;
-const int IN1_B = 6;
-const int IN2_B = 5;
+const int EN_B = 9;
+const int IN1_B = 8;
+const int IN2_B = 7;
+
+#define FRONT_TRIG_PIN 14  // A0
+#define FRONT_ECHO_PIN 15  // A1
+#define SIDE_TRIG_PIN 16   // A2
+#define SIDE_ECHO_PIN 17   // A3
 
 // Initialize both motors
 L298NX2 motors(EN_A, IN1_A, IN2_A, EN_B, IN1_B, IN2_B);
@@ -33,6 +38,14 @@ void setup() {
     while (!Serial);  // Wait for Serial Monitor
 
     motors.setSpeed(200);  // Set initial speed
+    pinMode(FRONT_TRIG_PIN, OUTPUT);
+    pinMode(FRONT_ECHO_PIN, INPUT);
+    pinMode(SIDE_TRIG_PIN, OUTPUT);
+    pinMode(SIDE_ECHO_PIN, INPUT);
+    
+    // Print initial message to confirm setup is complete
+    Enes100.println("OTV setup complete");
+    Serial.println("OTV setup complete - Ready for mission");
 }
 
 void loop() {
@@ -96,43 +109,34 @@ void moveToPosition(float targetX, float targetY) {
 }
 
 // Move forward
-void moveForward(int duration) {
+// Basic movement functions
+void moveForward() {
+  motors.forward();
+}
+
+void moveBackward() {
+  motors.backward();
+}
+
+void stopMotors() {
+  motors.stop();
+}
+
+void turnLeft() {
+    motors.runA(L298N::FORWARD);   // Right motor forward
+    motors.runB(L298N::BACKWARD);    // Left motor backward
+    motors.setSpeedA(150);
+    motors.setSpeedB(150);
     motors.forward();
-    printMotorStatus();
-    delay(duration);
 }
 
-// Move backward
-void moveBackward(int duration) {
-    motors.runA(L298N::BACKWARD);
-    motors.runB(L298N::BACKWARD);
-    printMotorStatus();
-    delay(duration);
+void turnRight() {
+    motors.runA(L298N::BACKWARD);   // Right motor backward
+    motors.runB(L298N::FORWARD);    // Left motor forward
+    motors.setSpeedA(150);
+    motors.setSpeedB(150);
+    motors.forward();
 }
-
-// Turn right (pivot by slowing down left motor)
-// Turn right by spinning wheels in opposite directions
-void turnRight(int duration) {
-    motors.runA(L298N::FORWARD);   // Left motor forward
-    motors.runB(L298N::BACKWARD);  // Right motor backward
-    motors.setSpeedA(200);         // You can tweak these to fine-tune slipping
-    motors.setSpeedB(200);
-    
-    printMotorStatus();
-    delay(duration);
-}
-
-
-void turnLeft(int duration) {
-    motors.runA(L298N::BACKWARD);   // Left motor backward
-    motors.runB(L298N::FORWARD);    // Right motor forward
-    motors.setSpeedA(200);
-    motors.setSpeedB(200);
-
-    printMotorStatus();
-    delay(duration);
-}
-
 
 // Stop motors
 void stopMotors(int duration) {
