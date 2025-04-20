@@ -39,8 +39,6 @@ const int ROOM_NUMBER = 1120;
 const int WIFI_TX = 4;  // ESP32-CAM TX connects to Arduino pin 8
 const int WIFI_RX = 2;  // ESP32-CAM RX connects to Arduino pin 9
 
-
-
 int counter = 0;
 
 
