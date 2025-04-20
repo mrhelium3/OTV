@@ -188,6 +188,52 @@ void rotateToAngle(float targetTheta) {
   
 }
 
+// Rotateto code with varying speed
+/*
+void rotateToAngle(float targetTheta) {
+    const int maxSpeed = 180;
+    const int minSpeed = 100;
+    const float k = 0.1;  // Steepness of curve, change to change the speed variation
+
+    while (true) {
+        float currentTheta = Enes100.getTheta();
+        float error = targetTheta - currentTheta;
+
+        // Normalize error to range [-180, 180]
+        while (error > 180) error -= 360;
+        while (error < -180) error += 360;
+
+        if (abs(error) < 3) {
+            stopMotors();
+            Serial.println("🧭 Aligned to Target Angle");
+            break;
+        }
+
+        // Calculate curved speed based on angle error
+        float curvedSpeed = maxSpeed * (1 - exp(-k * abs(error)));
+        int speed = constrain((int)curvedSpeed, minSpeed, maxSpeed);
+
+        if (error > 0) {
+            motors.runA(L298N::BACKWARD); // Left motor backward
+            motors.runB(L298N::FORWARD);  // Right motor forward
+        } else {
+            motors.runA(L298N::FORWARD);  // Left motor forward
+            motors.runB(L298N::BACKWARD); // Right motor backward
+        }
+
+        motors.setSpeedA(speed);
+        motors.setSpeedB(speed);
+
+        Serial.print("🔄 Rotating | Error: ");
+        Serial.print(error);
+        Serial.print("° | Speed: ");
+        Serial.println(speed);
+
+        delay(100);
+    }
+}
+*/
+
 //----------------------------------------------------------------------------------------------------------------
 // Function to move the robot to the target position
 void moveToPosition(float targetX, float targetY) {
@@ -206,6 +252,55 @@ void moveToPosition(float targetX, float targetY) {
     }
 }
 
+// Move to code with varying speed
+/*
+void moveToPosition(float targetX, float targetY) {
+    const int minDistance = 20;    // cm - safety distance
+    const int maxSpeed = 230;
+    const float k = 0.05;          // curve steepness
+    const int minSpeed = 100;      // avoid stalling
+
+    while (true) {
+        float currentX = Enes100.getX();
+        float currentY = Enes100.getY();
+        float distanceToTarget = sqrt(pow(targetX - currentX, 2) + pow(targetY - currentY, 2));
+
+        long frontDistance = getDistance(trigPin1, echoPin1);  // Use front ultrasonic sensor
+
+        // Stop if robot is close enough to the target position
+        if (distanceToTarget < 2) {
+            stopMotors();
+            Serial.println("📍 Reached Target Position");
+            break;
+        }
+
+        // Stop if obstacle is too close
+        if (frontDistance <= minDistance) {
+            stopMotors();
+            Serial.print("🛑 Obstacle too close (");
+            Serial.print(frontDistance);
+            Serial.println(" cm). Stopping...");
+            break;
+        }
+
+        // Calculate curved speed
+        float curvedSpeed = maxSpeed * (1 - exp(-k * (frontDistance - minDistance)));
+        int speed = constrain((int)curvedSpeed, minSpeed, maxSpeed);
+
+        motors.setSpeed(speed);
+        moveForward();
+
+        Serial.print("🚗 Speed: ");
+        Serial.print(speed);
+        Serial.print(" | Front Distance: ");
+        Serial.print(frontDistance);
+        Serial.print(" cm | Distance to Target: ");
+        Serial.println(distanceToTarget);
+
+        delay(100);  // Small delay for stability
+    }
+}
+*/
 //----------------------------------------------------------------------------------------------------------------
 //fan control
 //----------------------------------------------------------------------------------------------------------------
