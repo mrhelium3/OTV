@@ -191,7 +191,7 @@ void rotateToAngle(float targetTheta) {
 void rotateToAngle(float targetTheta) {
     const int maxSpeed = 180;
     const int minSpeed = 100;
-    const float k = 0.1;  // Steepness of curve, change to change the speed variation
+    const float k = 0.05;  // Steepness of curve, change to change the speed variation
 
     while (true) {
         float currentTheta = Enes100.getTheta();
