@@ -30,10 +30,13 @@ const int echoPin1 = 15;
 const int trigPin2 = 16;
 const int echoPin2 = 17;
 
+const int trigPin2 = 13;
+const int echoPin2 = 12;
+
 
 
 // Team information - keep the name you saw in the images
-const char TEAM_NAME = "It's lit";  // Match what's in the system
+const char TEAM_NAME = "Chiu Chiu Train";  // Match what's in the system
 const int MARKER_ID = 635;             
 const int ROOM_NUMBER = 1120;
 const int WIFI_TX = 4;  // ESP32-CAM TX connects to Arduino pin 8
@@ -62,6 +65,8 @@ void setup() {
     pinMode(echoPin1, INPUT);
     pinMode(trigPin2, OUTPUT);
     pinMode(echoPin2, INPUT);
+    pinMode(trigPin3, OUTPUT);
+    pinMode(echoPin3, INPUT);
 
     // Set fan control pin as output
     pinMode(FAN_PIN, OUTPUT);
@@ -117,6 +122,7 @@ void loop() {
   
   long distance1 = getDistance(trigPin1, echoPin1);
   long distance2 = getDistance(trigPin2, echoPin2);
+  long distance3 = getDistance(trigPin3, echoPin3);
    
   bool object1 = distance1 <= 2;
   bool object2 = distance2 <= 2;
@@ -373,6 +379,49 @@ void turnRight(){
     delay(200);
 }
 
+//----------------------------------------------------------------------------------------------------------------
+//orientation identify
+//----
+void readOrientation(){
+  const unsigned long duration = 5000; // 5 seconds
+  const unsigned long interval = 200;  // take a reading every 200 ms (25 readings total)
+  const int numReadings = duration / interval;
+
+  int countA = 0;
+  int countB = 0;
+  int countC = 0;
+
+  for (int i = 0; i < numReadings; i++) {
+    long distance1 = getDistance(trigPin1, echoPin1);
+    long distance2 = getDistance(trigPin2, echoPin2);
+    
+    bool object1 = distance1 <= 2;
+    bool object2 = distance2 <= 2;
+    char status;
+
+    if (object1 && object2) {
+      status = 'C';
+      countC++;
+    } else if (object1) {
+      status = 'A';
+      countA++;
+    } else if (object2) {
+      status = 'B';
+      countB++;
+    }
+
+    delay(interval);
+  }
+
+  // Determine the most common status
+  if (countC >= countA && countC >= countB) {
+    Enes100.mission(TOPOGRAPHY, TOP_C);
+  } else if (countA >= countB) {
+    Enes100.mission(TOPOGRAPHY, TOP_A);
+  } else {
+    Enes100.mission(TOPOGRAPHY, TOP_B);
+  }
+}
 //----------------------------------------------------------------------------------------------------------------
 //print status
 //----------------------------------------------------------------------------------------------------------------
