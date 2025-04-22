@@ -13,9 +13,9 @@ void moveToPosition(float targetX, float targetY);
 void setMotorSpeed(int leftSpeed, int rightSpeed);
 void stopMotors();
 
-void setup() {
+void setup() { 
     // Initialize communication with the Vision System
-    Enes100.begin("TeamName", FIRE, 3, 8, 9);
+    Enes100.begin("ChiuChiu Train", FIRE, 1120, 12, 11);
 
     // Set motor pins as outputs
     pinMode(LEFT_MOTOR_FORWARD, OUTPUT);

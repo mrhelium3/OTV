@@ -5,14 +5,14 @@
 // 3. Dekay values based on speed of OTV
 // 4. pin assignments need to match (ultrasonic / h-bridge)
 
-#include "Enes100.h"
+#include "C:\Users\owenm\OneDrive\Documents\GitHub\OTV\ENES100ArduinoLibrary-master\src\Enes100.h"
 
 const char* teamName = "Chiu Chiu Train";
 byte teamType = FIRE;
 int markerId = 467; // varies
 int roomNumber = 1120;
-int wifiModuleTX = 3;
-int wifiModuleRX = 2;
+int wifiModuleTX =12;
+int wifiModuleRX = 11;
 
 // Motor pins
 #define LEFT_MOTOR_FORWARD 5
