@@ -1,5 +1,6 @@
+#include <Enes100.h>
+
 // 👇 Add this helper function to measure distance using ultrasonic sensor
-#include "Enes100.h"
 #include <L298NX2.h>
 
 
@@ -30,13 +31,13 @@ const int echoPin1 = 15;
 const int trigPin2 = 16;
 const int echoPin2 = 17;
 
-const int trigPin2 = 13;
-const int echoPin2 = 12;
+const int trigPin3 = 18;
+const int echoPin3 = 19;
 
 
 
 // Team information - keep the name you saw in the images
-const char TEAM_NAME = "Chiu Chiu Train";  // Match what's in the system
+const char* TEAM_NAME = "Chiu Chiu Train";  // Match what's in the system
 const int MARKER_ID = 635;             
 const int ROOM_NUMBER = 1120;
 const int WIFI_TX = 4;  // ESP32-CAM TX connects to Arduino pin 8
@@ -74,8 +75,7 @@ void setup() {
     
     motors.setSpeed(200);
 
-    Serial.begin(9600);
-    Serial.println("Starting WiFi module test...");
+    
   
     // Initialize Vision System communication
     Enes100.begin(TEAM_NAME, FIRE, MARKER_ID, ROOM_NUMBER, WIFI_TX, WIFI_RX);
@@ -103,6 +103,7 @@ void setup() {
 }
 
 
+
 long getDistance(int trigPin, int echoPin) {
     digitalWrite(trigPin, LOW);
     delayMicroseconds(2);
@@ -121,26 +122,29 @@ long getDistance(int trigPin, int echoPin) {
 void loop() {
   
   long distance1 = getDistance(trigPin1, echoPin1);
-  long distance2 = getDistance(trigPin2, echoPin2);
   long distance3 = getDistance(trigPin3, echoPin3);
-   
-  bool object1 = distance1 <= 2;
-  bool object2 = distance2 <= 2;
-  char status;
+     
+
+
+  readOrientation();
+  rotateToAngle(3);
+  //fanOn(150);
 
   Serial.print("Front Distance: ");
   Serial.print(distance1);
   Serial.println(" cm");
 
   Serial.print("Side Distance: ");
-  Serial.print(distance2);
+  Serial.print(distance3);
   Serial.println(" cm");
 
-  navigateTo(50, 30, 90);
+  //navigateTo(50, 30, 90);
   delay(2000);  // Wait before next movement
+
+
   
   // Simple test sequence - can be replaced with mission code later
-  testFanControl();
+  //testFanControl();
   delay(2000);
 }
 
@@ -156,40 +160,62 @@ void navigateTo(float targetX, float targetY, float targetTheta) {
 //----------------------------------------------------------------------------------------------------------------
 // Function to rotate the robot to a target angle
 void rotateToAngle(float targetTheta) {
+    const int maxSpeed = 100;
+    const int minSpeed = 70;
+    // const float k = 1.5;
+
+    float lastTheta = Enes100.getTheta(); // ← Initialize before loop
+    int steadyCounter = 0;
+    float Theta = 0;
+
     while (true) {
         float currentTheta = Enes100.getTheta();
-        float error = targetTheta - currentTheta;
+        if (currentTheta<0){
+        Theta = abs(currentTheta);
+        } else {
+          Theta = 2 * currentTheta;
+        }
+        float error = targetTheta - Theta; 
+        // Normalize error to [-PI, PI]
+        //while (error > PI) error -= 2 * PI;
+        //while (error < -PI) error += 2 * PI;
 
-        // Normalize error to range [-180, 180]
-        while (error > 180) error -= 360;
-        while (error < -180) error += 360;
+        // Check if close enough
+        if (error < 0.05) {
+            steadyCounter++;
+        } else {
+            steadyCounter = 0;
+        }
 
-        if (abs(error) < 3) {  // Stop rotating when close enough
+        if (steadyCounter > 5) {
             stopMotors();
+            Enes100.println("🧭 Aligned!");
             break;
         }
 
-        //int rotationSpeed = map(abs(error), 0, 180, 80);  // Proportional control
+        int speed = 100; // keep it low for now
 
         if (error > 0) {
-            turnRight();  // Turn right
+            motors.runA(L298N::BACKWARD);
+            motors.runB(L298N::FORWARD);
         } else {
-            turnLeft();  // Turn left
+            motors.runA(L298N::FORWARD);
+            motors.runB(L298N::BACKWARD);
         }
 
-        delay(100);
-    }
+        motors.setSpeedA(speed);
+        motors.setSpeedB(speed);
 
-  /*if (distance1 > 20) {
-    Serial.println("✅ Path clear. Moving forward...");
-    moveForward();
-  } else {
-    Serial.println("🛑 Obstacle detected. Stopping motors...");
-    stopMotors();
-    delay(200);  // Small delay for stability
-  }
-  */
-  
+        float deltaTheta = currentTheta - lastTheta;
+        lastTheta = currentTheta;
+
+        Enes100.print("Rotating | Error: ");
+        Enes100.println(error);
+        Enes100.print("ΔTheta: ");
+        Enes100.println(deltaTheta);
+
+        delay(10);
+    }
 }
 
 // Rotateto code with varying speed
@@ -361,10 +387,10 @@ void stopMotors() {
 void turnLeft() {
     motors.runA(L298N::BACKWARD);     // Left motor backward  
     motors.runB(L298N::FORWARD);      // Right motor forward
-    motors.setSpeedA(150);
-    motors.setSpeedB(150);
+    motors.setSpeedA(30);
+    motors.setSpeedB(30);
 
-    printMotorStatus();
+    //printMotorStatus();
     delay(200);
 }
 
@@ -372,10 +398,10 @@ void turnLeft() {
 void turnRight(){
     motors.runA(L298N::FORWARD);   // Left motor forward
     motors.runB(L298N::BACKWARD);  // Right motor backward
-    motors.setSpeedA(150);         // You can tweak these to fine-tune slipping
-    motors.setSpeedB(150);
+    motors.setSpeedA(30);         // You can tweak these to fine-tune slipping
+    motors.setSpeedB(30);
     
-    printMotorStatus();
+    //printMotorStatus();
     delay(200);
 }
 
@@ -395,6 +421,7 @@ void readOrientation(){
     long distance1 = getDistance(trigPin1, echoPin1);
     long distance2 = getDistance(trigPin2, echoPin2);
     
+    
     bool object1 = distance1 <= 2;
     bool object2 = distance2 <= 2;
     char status;
@@ -409,17 +436,20 @@ void readOrientation(){
       status = 'B';
       countB++;
     }
-
+    
     delay(interval);
   }
 
   // Determine the most common status
   if (countC >= countA && countC >= countB) {
-    Enes100.mission(TOPOGRAPHY, TOP_C);
+    //Enes100.mission(TOPOGRAPHY, TOP_C);
+    Serial.print("c");
   } else if (countA >= countB) {
-    Enes100.mission(TOPOGRAPHY, TOP_A);
+   // Enes100.mission(TOPOGRAPHY, TOP_A);
+    Serial.print("a");
   } else {
-    Enes100.mission(TOPOGRAPHY, TOP_B);
+   // Enes100.mission(TOPOGRAPHY, TOP_B);
+    Serial.print("b");
   }
 }
 //----------------------------------------------------------------------------------------------------------------
