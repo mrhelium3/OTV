@@ -214,7 +214,7 @@ void navigateObstacles() {
 void goOverLog() {
   navigateTo(3.1, .55, 0);
   delay(100);
-  moveToPoistion(3.8, .55);
+  moveToPosition(3.8, .55);
   Enes100.println("Finished!");
 }
 //============================
