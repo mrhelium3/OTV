@@ -79,28 +79,33 @@ void ultrasonicSetup(){
 //============================
 
 void loop() {
-  goToStartingLocation();
-  delay(1000);
+  bool missionActive = true;
+  while(missionActive){
+    goToStartingLocation();
+    delay(1000);
   
-  //do activities at mission site
-  readOrientation();
-  delay(100);
-  countCandles();
-  extinguish();
+    //do activities at mission site
+    readOrientation();
+    delay(100);
+    countCandles();
+    delay(100);
+    extinguish();
  
-  //backup before navigation
-  moveBackward();
-  delay(200);
-  stopMotors();
-  rotateToAngle(PI);
+    //backup before navigation
+    moveBackward();
+    delay(200);
+    stopMotors();
+    rotateToAngle(PI);
 
-  //Navigate past the obstacles
-  navigateObstacles();
-  delay(1000);
+    //Navigate past the obstacles
+    navigateObstacles();
+    delay(1000);
 
-  //Go to the finish
-  goOverLog();
-
+    //Go to the finish
+    goOverLog();
+    missionActive = false;
+  }
+ 
 
 }
 
