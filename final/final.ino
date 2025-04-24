@@ -81,29 +81,29 @@ void ultrasonicSetup(){
 void loop() {
   bool missionActive = true;
   while(missionActive){
-    goToStartingLocation();
-    delay(1000);
+    //goToStartingLocation();
+    //delay(1000);
   
     //do activities at mission site
-    readOrientation();
-    delay(100);
-    countCandles();
+    //readOrientation();
+    //delay(100);
+    //countCandles();
     delay(100);
     extinguish();
  
     //backup before navigation
-    moveBackward();
+   // moveBackward();
     delay(200);
-    stopMotors();
-    rotateToAngle(PI);
+    //stopMotors();
+    //rotateToAngle(PI);
 
     //Navigate past the obstacles
-    navigateObstacles();
+    //navigateObstacles();
     delay(1000);
 
     //Go to the finish
-    goOverLog();
-    missionActive = false;
+    //goOverLog();
+    missionActive = true;
   }
  
 
@@ -161,6 +161,8 @@ void extinguish(){
   fanOn(fanSpeed);
   delay(fanTime);
   fanOff();
+
+  Enes100.println("Fire Suprressed!");
 }
 
 //Navigate past the obstacles
