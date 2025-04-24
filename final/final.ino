@@ -26,6 +26,8 @@ const int EN_B = 9;
 const int IN1_B = 8;
 const int IN2_B = 7;
 
+bool missionActive = true;
+
 //Define navigation constants
 const int OBSTACLE_THRESHOLD = 20;    // cm
 const float ARENA_Y_MIDPOINT = 1.0;   // meters
@@ -79,9 +81,9 @@ void ultrasonicSetup(){
 //============================
 
 void loop() {
-  bool missionActive = true;
-  while(missionActive){
-    //goToStartingLocation();
+    while(missionActive){
+    goToStartingLocation();
+    //rotateToAngle(PI);
     //delay(1000);
   
     //do activities at mission site
@@ -89,7 +91,7 @@ void loop() {
     //delay(100);
     //countCandles();
     delay(100);
-    extinguish();
+    //extinguish();
  
     //backup before navigation
    // moveBackward();
@@ -103,7 +105,7 @@ void loop() {
 
     //Go to the finish
     //goOverLog();
-    missionActive = true;
+    missionActive = false;
   }
  
 
@@ -119,10 +121,10 @@ void goToStartingLocation() {
   bool isTop = y > 1.0;
 
   if (isTop) {
-    rotateToAngle(-PI/2);
+    rotateToAngle(PI/2);
     moveToPosition(0.55, 0.60);
   } else { 
-    rotateToAngle(PI/2);
+    rotateToAngle(-PI/2);
     moveToPosition(0.55, 1.3);
   }
 }
@@ -155,8 +157,8 @@ void countCandles(){
 
 //Put out the candles
 void extinguish(){
-  const int fanSpeed = 150;
-  const int fanTime = 1500;
+  const int fanSpeed = 250;
+  const int fanTime = 2000;
 
   fanOn(fanSpeed);
   delay(fanTime);
@@ -230,32 +232,34 @@ float normalizeAngle(float angle) {
   return angle;
 }
 
+float toPositiveAngle(float angle) {
+    while (angle < 0) angle += 2 * PI;
+    while (angle >= 2 * PI) angle -= 2 * PI;
+    return angle;
+}
+
+
 //Rotate to a specified angle Funciton 
 void rotateToAngle(float targetTheta) {
-    const int baseSpeed = 90;
-    const float tolerance = 0.05;
+    const float TOLERANCE = 0.2;  // radians
+    const int SPEED = 70;
 
-    int steadyCounter = 0;
+    targetTheta = toPositiveAngle(targetTheta);
 
     while (true) {
-        float currentTheta = Enes100.getTheta();
-        float error = normalizeAngle(targetTheta - currentTheta);
+        float currentTheta = toPositiveAngle(Enes100.getTheta());
+        float error = targetTheta - currentTheta;
 
-        // If angle is within tolerance, increment steady count
-        if (abs(error) < tolerance) {
-            steadyCounter++;
-        } else {
-            steadyCounter = 0;
-        }
+        // Normalize to [-PI, PI] but using positive space
+        if (error > PI) error -= 2 * PI;
+        if (error < -PI) error += 2 * PI;
 
-        // Stop once held steady for a bit
-        if (steadyCounter > 5) {
+        if (abs(error) < TOLERANCE) {
             stopMotors();
-            Serial.println("🧭 Aligned!");
+            Enes100.println("🧭 Aligned (0 to 2π logic).");
             break;
         }
 
-        // Turn direction
         if (error > 0) {
             motors.runA(L298N::BACKWARD);
             motors.runB(L298N::FORWARD);
@@ -264,17 +268,26 @@ void rotateToAngle(float targetTheta) {
             motors.runB(L298N::BACKWARD);
         }
 
-        motors.setSpeedA(baseSpeed);
-        motors.setSpeedB(baseSpeed);
+        motors.setSpeedA(SPEED);
+        motors.setSpeedB(SPEED);
 
-        delay(50);  // slight delay to reduce I/O overload
+        delay(50);
     }
 }
+
+
+
+
+
+
+
+
+
 
 //Move to a target Position
 void moveToPosition(float targetX, float targetY) {
     const float tolerance = 0.15;  // within 150mm
-    const int speed = 150;
+    const int speed = 200;
 
     while (true) {
         float currentX = Enes100.getX();
