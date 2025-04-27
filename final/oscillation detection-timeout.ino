@@ -15,6 +15,9 @@ void rotateToAngle(float targetTheta) {
     float currentTheta = toPositiveAngle(Enes100.getTheta());
     float error = angleDiff(targetTheta, currentTheta); // currentTheta = current angle, in radians (-π to π)
 
+    while (error > M_PI) error -= 2 * M_PI;
+    while (error < -M_PI) error += 2 * M_PI;
+
     if (abs(error) < threshold) {
       stopMotors(); // Stop if within range
       break;
