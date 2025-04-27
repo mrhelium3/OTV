@@ -4,7 +4,7 @@ void rotateToAngle(float targetTheta) {
   const int maxSpeed = 200;         // Cap speed to avoid overshoot
   const float threshold = 0.05;     // Acceptable error range (radians)
   const float brakingZone = 0.2;    // When to reduce speed
-  const int maxFlips = 6;           // Max oscillations allowed
+  const int maxFlips = 5;           // Max oscillations allowed
 
   int flipCount = 0;
   bool lastSign = true; // Track the last sign of the error
@@ -12,7 +12,8 @@ void rotateToAngle(float targetTheta) {
   const unsigned long timeout = 10000; // 10-second safety timeout
 
   while (true) {
-    float error = angleDiff(targetTheta, theta); // theta = current angle, in radians (-π to π)
+    float currentTheta = toPositiveAngle(Enes100.getTheta());
+    float error = angleDiff(targetTheta, currentTheta); // currentTheta = current angle, in radians (-π to π)
 
     if (abs(error) < threshold) {
       stopMotors(); // Stop if within range
