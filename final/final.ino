@@ -81,21 +81,26 @@ void ultrasonicSetup(){
 //============================
 
 void loop() {
-    missionActive = true;
-    while(missionActive){
-    //goToStartingLocation();
-    //turnRight();
+   // missionActive = true;
+    //while(missionActive){
+    goToStartingLocation();
     delay(500);
-    //turnLeft();
-    navigateObstacles();
+    motors.runA(L298N::FORWARD);
+    motors.runB(L298N::FORWARD);
+    delay(1500);
+    motors.stop();
+   // moveForward();
+    delay(500);
+    
+    //navigateObstacles();
     //delay(1000);
   
     //do activities at mission site
-    //readOrientation();
+    readOrientation();
     //delay(100);
     //countCandles();
     delay(100);
-    //extinguish();
+    extinguish();
  
     //backup before navigation
    // moveBackward();
@@ -109,8 +114,8 @@ void loop() {
 
     //Go to the finish
     //goOverLog();
-    missionActive = false;
-  }
+    //missionActive = false;
+  
  
 
 }
@@ -125,7 +130,7 @@ void goToStartingLocation() {
     delay(100);
   }
 
-  delay(100);
+  delay(1000);
   float y = Enes100.getY();
   float theta = Enes100.getTheta();
   bool isTop = y > 1.0;
@@ -138,10 +143,6 @@ void goToStartingLocation() {
    
   }
 
-   delay(1000);
-    moveForward();
-    delay(2500);
-    stopMotors();
 }
 
 //ML count the number of candles
@@ -255,7 +256,7 @@ void rotateToAngle(float targetTheta) {
     const int minSpeed = 120;
     const float k = 0.25;
     const int burstDuration = 75; // ms per burst
-    const int timeoutDuration = 30000; // 5 seconds timeout
+    const int timeoutDuration = 15000; // 5 seconds timeout
 
     unsigned long startTime = millis();  // ⏱ Start timer
     float lastTheta = Enes100.getTheta();
