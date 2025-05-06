@@ -14,8 +14,8 @@ const int trigPin2 = 16;
 const int echoPin2 = 17;
 
 // Define pins for Sensor 3
-const int trigPin3 = 13;
-const int echoPin3 = 12;
+const int trigPin3 = 18;
+const int echoPin3 = 19;
 
 //Define motor pins
 const int EN_A = 3;
@@ -33,13 +33,13 @@ const int OBSTACLE_THRESHOLD = 20;    // cm
 const float ARENA_Y_MIDPOINT = 1.0;   // meters
 const float X_GOAL_THRESHOLD = 2.8;   // meters
 const int FORWARD_SPEED = 150;
-const int SIDEWAYS_SPEED = 100;
+const int SIDEWAYS_SPEED = 80;
 
 //Define Motor
 L298NX2 motors(EN_A, IN1_A, IN2_A, EN_B, IN1_B, IN2_B);
 
 // Team information 
-const char* TEAM_NAME = "Chiu Chiu Train";  // Match what's in the system
+const char* TEAM_NAME = "Chiu Chiu Trainssssss";  // Match what's in the system
 const int MARKER_ID = 635;             
 const int ROOM_NUMBER = 1120;
 const int WIFI_TX = 4;  // ESP32-CAM TX connects to Arduino pin 4
@@ -81,9 +81,13 @@ void ultrasonicSetup(){
 //============================
 
 void loop() {
+    missionActive = true;
     while(missionActive){
-    goToStartingLocation();
-    //rotateToAngle(PI);
+    //goToStartingLocation();
+    //turnRight();
+    delay(500);
+    //turnLeft();
+    navigateObstacles();
     //delay(1000);
   
     //do activities at mission site
@@ -116,17 +120,28 @@ void loop() {
 //============================
 //Identify starting location
 void goToStartingLocation() {
+  while (!Enes100.isVisible()) {
+    Enes100.println("Waiting for vision lock...");
+    delay(100);
+  }
+
+  delay(100);
   float y = Enes100.getY();
   float theta = Enes100.getTheta();
   bool isTop = y > 1.0;
 
   if (isTop) {
-    rotateToAngle(PI/2);
-    moveToPosition(0.55, 0.60);
-  } else { 
     rotateToAngle(-PI/2);
-    moveToPosition(0.55, 1.3);
+   // moveToPosition(0.55, 0.60);
+  } else { 
+    rotateToAngle(PI/2);
+   
   }
+
+   delay(1000);
+    moveForward();
+    delay(2500);
+    stopMotors();
 }
 
 //ML count the number of candles
@@ -177,42 +192,47 @@ void navigateObstacles() {
       stopMotors();
       Enes100.println("Obstacle detected!");
 
-      // Always turn left to expose right-side sensor
+      // Turn left to face the obstacle with side sensor
       turnLeft();
-      delay(300);
+      delay(400);  // ensure full 90° turn
 
-      // If we're near the top → move FORWARD while Sensor 3 sees obstacle
-      // If near bottom → move BACKWARD instead
-      if (currentY > ARENA_Y_MIDPOINT) {
-        while (getDistance(trigPin3, echoPin3) <= OBSTACLE_THRESHOLD) {
-          motors.forward();
-          motors.setSpeed(SIDEWAYS_SPEED);
-          delay(100);
-        }
-      } else {
-        while (getDistance(trigPin3, echoPin3) <= OBSTACLE_THRESHOLD) {
+      // Determine direction based on Y position
+      unsigned long startTime = millis();
+      const unsigned long TIMEOUT = 5000;
+
+      while (getDistance(trigPin3, echoPin3) <= OBSTACLE_THRESHOLD && millis() - startTime < TIMEOUT) {
+        long sideDist = getDistance(trigPin3, echoPin3);
+        Enes100.print("Side dist: ");
+        Enes100.println(sideDist);
+
+        // Move sideways (forward or backward depending on top/bottom half)
+        if (currentY > ARENA_Y_MIDPOINT) {
           motors.backward();
-          motors.setSpeed(SIDEWAYS_SPEED);
-          delay(100);
+        } else {
+          motors.forward();
         }
+        motors.setSpeed(SIDEWAYS_SPEED);
+        delay(150);
       }
-
+      delay(100);
       stopMotors();
       delay(300);
       Enes100.println("Cleared obstacle");
 
-      // Turn back right to face forward again
+      // Turn right to resume original heading
       turnRight();
-      delay(300);
+      delay(400);  // ensure full 90° turn
     }
 
-    // Continue forward
+    // Default forward motion
     motors.forward();
     motors.setSpeed(FORWARD_SPEED);
     delay(100);
   }
+
   stopMotors();
 }
+
 
 //Go to the finish
 void goOverLog() {
@@ -226,39 +246,45 @@ void goOverLog() {
 //===========================
 
 //Normalize a given angle
-float normalizeAngle(float angle) {
-  while (angle > PI) angle -= 2 * PI;
-  while (angle < -PI) angle += 2 * PI;
-  return angle;
-}
 
-float toPositiveAngle(float angle) {
-    while (angle < 0) angle += 2 * PI;
-    while (angle >= 2 * PI) angle -= 2 * PI;
-    return angle;
-}
 
 
 //Rotate to a specified angle Funciton 
 void rotateToAngle(float targetTheta) {
-    const float TOLERANCE = 0.2;  // radians
-    const int SPEED = 70;
+    const int maxSpeed = 200;
+    const int minSpeed = 120;
+    const float k = 0.25;
+    const int burstDuration = 75; // ms per burst
+    const int timeoutDuration = 30000; // 5 seconds timeout
 
-    targetTheta = toPositiveAngle(targetTheta);
+    unsigned long startTime = millis();  // ⏱ Start timer
+    float lastTheta = Enes100.getTheta();
 
     while (true) {
-        float currentTheta = toPositiveAngle(Enes100.getTheta());
-        float error = targetTheta - currentTheta;
-
-        // Normalize to [-PI, PI] but using positive space
-        if (error > PI) error -= 2 * PI;
-        if (error < -PI) error += 2 * PI;
-
-        if (abs(error) < TOLERANCE) {
+        // ⏱ Check for timeout
+        if (millis() - startTime > timeoutDuration) {
             stopMotors();
-            Enes100.println("🧭 Aligned (0 to 2π logic).");
+            Enes100.println("❌ Timeout: Failed to reach target angle");
             break;
         }
+
+        float currentTheta = Enes100.getTheta();
+        float error = targetTheta - currentTheta;
+
+        // ✅ Normalize error to [-PI, PI]
+        error = atan2(sin(error), cos(error));
+
+        Enes100.print("Angle Error: ");
+        Enes100.println(error);
+
+        if (abs(error) < 0.05) {
+            stopMotors();
+            Enes100.println("✅ Aligned with target angle");
+            break;
+        }
+
+        float curvedSpeed = maxSpeed * (1 - exp(-k * abs(error)));
+        int speed = constrain((int)curvedSpeed, minSpeed, maxSpeed);
 
         if (error > 0) {
             motors.runA(L298N::BACKWARD);
@@ -268,12 +294,25 @@ void rotateToAngle(float targetTheta) {
             motors.runB(L298N::BACKWARD);
         }
 
-        motors.setSpeedA(SPEED);
-        motors.setSpeedB(SPEED);
+        motors.setSpeedA(speed);
+        motors.setSpeedB(speed);
 
-        delay(50);
+        float deltaTheta = currentTheta - lastTheta;
+        lastTheta = currentTheta;
+
+        delay(burstDuration);
+        stopMotors();
+
+        Enes100.print("ΔTheta: ");
+        Enes100.println(deltaTheta);
+
+        delay(200);
     }
 }
+
+
+
+
 
 
 
@@ -337,24 +376,28 @@ void stopMotors() {
 }
 
 //Left turn function
-void turnLeft() {
+void turnRight() {
+    motors.setSpeedA(180);
+    motors.setSpeedB(180);
     motors.runA(L298N::BACKWARD);     // Left motor backward  
     motors.runB(L298N::FORWARD);      // Right motor forward
-    motors.setSpeedA(150);
-    motors.setSpeedB(150);
+    
 
-    delay(200);
+    delay(1044);
+    stopMotors();
 }
 
 //Right turn function
-void turnRight(){
+void turnLeft(){
+    motors.setSpeedA(170);         // You can tweak these to fine-tune slipping
+    motors.setSpeedB(170);
     motors.runA(L298N::FORWARD);   // Left motor forward
     motors.runB(L298N::BACKWARD);  // Right motor backward
-    motors.setSpeedA(150);         // You can tweak these to fine-tune slipping
-    motors.setSpeedB(150);
+    
     
 
-    delay(200);
+    delay(990);
+    stopMotors();
 }
 
 //============================
