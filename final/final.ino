@@ -83,15 +83,15 @@ void ultrasonicSetup(){
 void loop() {
    // missionActive = true;
     //while(missionActive){
-    goToStartingLocation();
+   goToStartingLocation();
     delay(500);
     motors.runA(L298N::FORWARD);
     motors.runB(L298N::FORWARD);
     delay(1500);
-     delay(1500);
+    delay(400);
     motors.stop();
    // moveForward();
-    delay(500);
+    delay(1000);
     
     //navigateObstacles();
     //delay(1000);
@@ -102,16 +102,18 @@ void loop() {
     //countCandles();
     delay(100);
     extinguish();
+    delay(1000);
  
-    //backup before navigation
-   // moveBackward();
+    backUp();
+    moveBackward();
     delay(200);
     //stopMotors();
-    //rotateToAngle(PI);
+    
+    moveForward();
 
     //Navigate past the obstacles
     //navigateObstacles();
-    delay(1000);
+    delay(10000);
 
     //Go to the finish
     //goOverLog();
@@ -146,6 +148,21 @@ void goToStartingLocation() {
 
 }
 
+void backUp(){
+   delay(1000);
+  float y = Enes100.getY();
+  float theta = Enes100.getTheta();
+  bool isTop = y > 1.0;
+
+  if (isTop) {
+    turnRight();
+   // moveToPosition(0.55, 0.60);
+  } else { 
+    turnLeft();
+   
+  }
+}
+
 //ML count the number of candles
 void countCandles(){
   const int index = 1;
@@ -175,7 +192,7 @@ void countCandles(){
 //Put out the candles
 void extinguish(){
   const int fanSpeed = 250;
-  const int fanTime = 2000;
+  const int fanTime = 3000;
 
   fanOn(fanSpeed);
   delay(fanTime);
