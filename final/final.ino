@@ -88,6 +88,7 @@ void loop() {
     motors.runA(L298N::FORWARD);
     motors.runB(L298N::FORWARD);
     delay(1500);
+     delay(1500);
     motors.stop();
    // moveForward();
     delay(500);
