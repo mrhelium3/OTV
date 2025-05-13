@@ -39,7 +39,7 @@ const int SIDEWAYS_SPEED = 80;
 L298NX2 motors(EN_A, IN1_A, IN2_A, EN_B, IN1_B, IN2_B);
 
 // Team information 
-const char* TEAM_NAME = "Chiu Chiu Trainssssss";  // Match what's in the system
+const char* TEAM_NAME = "ChiuChiuTrain";  // Match what's in the system
 const int MARKER_ID = 635;             
 const int ROOM_NUMBER = 1120;
 const int WIFI_TX = 4;  // ESP32-CAM TX connects to Arduino pin 4
@@ -87,7 +87,7 @@ void loop() {
     delay(500);
     motors.runA(L298N::FORWARD);
     motors.runB(L298N::FORWARD);
-    delay(1500);
+    delay(1550);
     delay(400);
     motors.stop();
    // moveForward();
@@ -98,22 +98,28 @@ void loop() {
   
     //do activities at mission site
     readOrientation();
-    //delay(100);
+    delay(100);
     //countCandles();
     delay(100);
     extinguish();
     delay(1000);
  
-    backUp();
     moveBackward();
-    delay(200);
-    //stopMotors();
+    delay(500);
+    stopMotors();
+    backUp();
     
-    moveForward();
+    delay(500);
+    
+    
+   
 
     //Navigate past the obstacles
-    //navigateObstacles();
-    delay(10000);
+    navigateObstacles();
+    moveForward();
+    
+    delay(8000);
+    motors.stop();
 
     //Go to the finish
     //goOverLog();
@@ -165,28 +171,29 @@ void backUp(){
 
 //ML count the number of candles
 void countCandles(){
-  const int index = 1;
-  int numLit = Enes100.MLGetPrediction(index);
-  switch (numLit) {
+  int prediction = Enes100.MLGetPrediction(5);  // Use your correct model index
+
+  Serial.print("Candle prediction: ");
+  switch (prediction) {
     case 0:
-      Enes100.mission(NUM_CANDLES, 1);
+      Enes100.mission(NUM_CANDLES, 5);
+      //Serial.println("5 candles lit");
       break;
     case 1:
       Enes100.mission(NUM_CANDLES, 2);
       break;
-    case 2:
-      Enes100.mission(NUM_CANDLES, 3);
-      break;
-    case 3:
-      Enes100.mission(NUM_CANDLES, 4);
-      break;
-    case 4:
-      Enes100.mission(NUM_CANDLES, 5);
-      break;
+    // case 2:
+    //  Serial.println("4 candles lit");
+    //  break;
+    // case 3:
+    //   Serial.println("5 candles lit");
+    //  break;
     default:
-      Enes100.println("No prediction");
+      Serial.println("No prediction or unknown result");
       break;
   }
+
+  delay(5000);
 }
 
 //Put out the candles
@@ -202,56 +209,58 @@ void extinguish(){
 }
 
 //Navigate past the obstacles
+//Navigate past the obstacles
 void navigateObstacles() {
+    const int OBSTACLE_THRESHOLD = 20;    // cm
+    const float ARENA_Y_MIDPOINT = 1.0;   // meters
+    const float X_GOAL_THRESHOLD = 2.8;   // meters
+    long sideDistance = getDistance(trigPin3, echoPin3);
+  
   while (Enes100.getX() < X_GOAL_THRESHOLD) {
-    long frontDistance = getDistance(trigPin1, echoPin1);  // Sensor 1
+    long frontDistance1 = getDistance(trigPin1, echoPin1);
+    long frontDistance2 = getDistance(trigPin2, echoPin2); 
     float currentY = Enes100.getY();
 
-    if (frontDistance <= OBSTACLE_THRESHOLD) {
+    if (frontDistance1 <= OBSTACLE_THRESHOLD || frontDistance2 <= OBSTACLE_THRESHOLD){
       stopMotors();
       Enes100.println("Obstacle detected!");
 
-      // Turn left to face the obstacle with side sensor
+      // Always turn left to expose right-side sensor
       turnLeft();
-      delay(400);  // ensure full 90° turn
+      delay(200);
 
-      // Determine direction based on Y position
-      unsigned long startTime = millis();
-      const unsigned long TIMEOUT = 5000;
-
-      while (getDistance(trigPin3, echoPin3) <= OBSTACLE_THRESHOLD && millis() - startTime < TIMEOUT) {
-        long sideDist = getDistance(trigPin3, echoPin3);
-        Enes100.print("Side dist: ");
-        Enes100.println(sideDist);
-
-        // Move sideways (forward or backward depending on top/bottom half)
-        if (currentY > ARENA_Y_MIDPOINT) {
-          motors.backward();
-        } else {
+      // If we're near the top → move FORWARD while Sensor 3 sees obstacle
+      // If near bottom → move BACKWARD instead
+      if (currentY > ARENA_Y_MIDPOINT) {
+        while (sideDistance <= OBSTACLE_THRESHOLD) {
           motors.forward();
+          motors.setSpeed(SIDEWAYS_SPEED);
+          delay(100);
         }
-        motors.setSpeed(SIDEWAYS_SPEED);
-        delay(150);
+      } else {
+        while (sideDistance <= OBSTACLE_THRESHOLD) {
+          motors.backward();
+          motors.setSpeed(SIDEWAYS_SPEED);
+          delay(100);
+        }
       }
-      delay(100);
+
       stopMotors();
       delay(300);
       Enes100.println("Cleared obstacle");
 
-      // Turn right to resume original heading
+      // Turn back right to face forward again
       turnRight();
-      delay(400);  // ensure full 90° turn
+      delay(300);
     }
 
-    // Default forward motion
+    // Continue forward
     motors.forward();
     motors.setSpeed(FORWARD_SPEED);
     delay(100);
   }
-
   stopMotors();
 }
-
 
 //Go to the finish
 void goOverLog() {
@@ -274,7 +283,7 @@ void rotateToAngle(float targetTheta) {
     const int minSpeed = 120;
     const float k = 0.25;
     const int burstDuration = 75; // ms per burst
-    const int timeoutDuration = 15000; // 5 seconds timeout
+    const int timeoutDuration = 32000; // 5 seconds timeout
 
     unsigned long startTime = millis();  // ⏱ Start timer
     float lastTheta = Enes100.getTheta();
@@ -322,8 +331,8 @@ void rotateToAngle(float targetTheta) {
         delay(burstDuration);
         stopMotors();
 
-        Enes100.print("ΔTheta: ");
-        Enes100.println(deltaTheta);
+        //Enes100.print("ΔTheta: ");
+        //Enes100.println(deltaTheta);
 
         delay(200);
     }
@@ -408,14 +417,14 @@ void turnRight() {
 
 //Right turn function
 void turnLeft(){
-    motors.setSpeedA(170);         // You can tweak these to fine-tune slipping
-    motors.setSpeedB(170);
+    motors.setSpeedA(160);         // You can tweak these to fine-tune slipping
+    motors.setSpeedB(160);
     motors.runA(L298N::FORWARD);   // Left motor forward
     motors.runB(L298N::BACKWARD);  // Right motor backward
     
     
 
-    delay(990);
+    delay(900);
     stopMotors();
 }
 
